@@ -706,17 +706,17 @@ app.post('/api/generate-pdf', async (req, res) => {
         }
       }
       
-      const browserOptions = {
-        headless: 'new',
-        args: [
-          '--no-sandbox', 
-          '--disable-setuid-sandbox',
-          '--disable-web-security',
-          '--disable-dev-shm-usage',
-          '--no-first-run',
-          '--disable-gpu'
-        ]
-      };
+             const browserOptions = {
+         headless: true,
+         args: [
+           '--no-sandbox', 
+           '--disable-setuid-sandbox',
+           '--disable-web-security',
+           '--disable-dev-shm-usage',
+           '--no-first-run',
+           '--disable-gpu'
+         ]
+       };
       
       if (executablePath) {
         browserOptions.executablePath = executablePath;
