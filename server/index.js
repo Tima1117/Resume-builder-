@@ -676,14 +676,13 @@ app.post('/api/generate-pdf', async (req, res) => {
       console.log('Запуск в Vercel окружении с @sparticuz/chromium');
       
       try {
-        // Сначала пытаемся с executablePath
-        let executablePath;
-        try {
-          executablePath = await chromium.executablePath();
-          console.log('Chrome executable path:', executablePath);
-        } catch (pathError) {
-          console.log('Не удалось получить executablePath, используем системный Chrome');
-          executablePath = null;
+        // Получаем путь к chromium и шрифтам
+        const executablePath = await chromium.executablePath();
+        console.log('Chrome executable path:', executablePath);
+        
+        // Добавляем шрифты если доступны
+        if (chromium.font) {
+          await chromium.font('https://raw.githubusercontent.com/googlefonts/noto-emoji/main/fonts/NotoColorEmoji.ttf');
         }
         
         const launchOptions = {
@@ -693,7 +692,8 @@ app.post('/api/generate-pdf', async (req, res) => {
             '--disable-dev-shm-usage',
             '--disable-gpu',
             '--disable-web-security',
-            '--disable-features=VizDisplayCompositor,AudioServiceOutOfProcess',
+            '--disable-features=VizDisplayCompositor,AudioServiceOutOfProcess,TranslateUI',
+            '--disable-ipc-flooding-protection',
             '--disable-background-timer-throttling',
             '--disable-backgrounding-occluded-windows',
             '--disable-renderer-backgrounding',
@@ -710,23 +710,34 @@ app.post('/api/generate-pdf', async (req, res) => {
             '--disable-accelerated-2d-canvas',
             '--disable-background-networking',
             '--disable-default-apps',
-            '--disable-extensions',
             '--disable-sync',
             '--metrics-recording-only',
             '--no-default-browser-check',
-            '--no-first-run',
             '--safebrowsing-disable-auto-update',
             '--single-process',
-            '--no-zygote'
+            '--no-zygote',
+            '--disable-automation',
+            '--disable-blink-features=AutomationControlled',
+            '--use-mock-keychain',
+            '--disable-popup-blocking',
+            '--disable-prompt-on-repost',
+            '--disable-hang-monitor',
+            '--disable-component-update',
+            '--disable-domain-reliability',
+            '--disable-client-side-phishing-detection',
+            '--disable-translate',
+            '--disable-logging',
+            '--silent',
+            '--user-data-dir=/tmp',
+            '--data-path=/tmp',
+            '--homedir=/tmp',
+            '--disk-cache-dir=/tmp'
           ],
-          headless: 'new',
+          executablePath: executablePath,
+          headless: true,
           ignoreHTTPSErrors: true,
-          ignoreDefaultArgs: ['--disable-extensions'],
+          timeout: 30000,
         };
-        
-        if (executablePath) {
-          launchOptions.executablePath = executablePath;
-        }
         
         // Используем @sparticuz/chromium для Vercel
         browser = await puppeteerCore.launch(launchOptions);
@@ -734,7 +745,28 @@ app.post('/api/generate-pdf', async (req, res) => {
         console.log('Браузер @sparticuz/chromium запущен успешно');
       } catch (chromeError) {
         console.error('Ошибка запуска @sparticuz/chromium:', chromeError.message);
-        throw chromeError;
+        
+        // Fallback - попробуем без executablePath (системный Chrome)
+        console.log('Пробуем запуск без executablePath...');
+        try {
+          browser = await puppeteerCore.launch({
+            headless: true,
+            args: [
+              '--no-sandbox',
+              '--disable-setuid-sandbox',
+              '--disable-dev-shm-usage',
+              '--disable-gpu',
+              '--disable-web-security',
+              '--single-process',
+              '--no-zygote'
+            ],
+            timeout: 30000,
+          });
+          console.log('Системный браузер запущен успешно');
+        } catch (fallbackError) {
+          console.error('Системный браузер тоже не работает:', fallbackError.message);
+          throw chromeError; // Возвращаем исходную ошибку
+        }
       }
     } else {
       console.log('Запуск в локальном окружении');
