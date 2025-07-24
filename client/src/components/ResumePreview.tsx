@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Download, Printer, FileText } from 'lucide-react';
+import { ArrowLeft, Printer, FileText } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { ResumeData } from '../types/Resume';
