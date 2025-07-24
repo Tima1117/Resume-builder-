@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const { chromium } = require('playwright');
 const htmlPdf = require('html-pdf-node');
+const htmlPdfLib = require('html-pdf');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -725,32 +726,69 @@ app.post('/api/generate-pdf', async (req, res) => {
       console.log('PDF сгенерирован успешно с Playwright, размер:', pdf.length, 'байт');
       await browser.close();
       
-    } catch (playwrightError) {
-      console.error('Playwright не работает:', playwrightError.message);
-      console.log('Переключаемся на html-pdf-node...');
-      
-      // Fallback: используем html-pdf-node
-      const options = {
-        format: 'A4',
-        printBackground: true,
-        margin: {
-          top: '0mm',
-          right: '0mm',
-          bottom: '0mm',
-          left: '0mm'
-        },
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu'
-        ]
-      };
-      
-      const file = { content: html };
-      pdf = await htmlPdf.generatePdf(file, options);
-      console.log('PDF сгенерирован успешно с html-pdf-node, размер:', pdf.length, 'байт');
-    }
+         } catch (playwrightError) {
+       console.error('Playwright не работает:', playwrightError.message);
+       console.log('Переключаемся на html-pdf-node...');
+       
+       try {
+         // Fallback 1: используем html-pdf-node
+         const options = {
+           format: 'A4',
+           printBackground: true,
+           margin: {
+             top: '0mm',
+             right: '0mm',
+             bottom: '0mm',
+             left: '0mm'
+           },
+           args: [
+             '--no-sandbox',
+             '--disable-setuid-sandbox',
+             '--disable-dev-shm-usage',
+             '--disable-gpu'
+           ]
+         };
+         
+         const file = { content: html };
+         pdf = await htmlPdf.generatePdf(file, options);
+         console.log('PDF сгенерирован успешно с html-pdf-node, размер:', pdf.length, 'байт');
+         
+       } catch (htmlPdfError) {
+         console.error('html-pdf-node тоже не работает:', htmlPdfError.message);
+                   console.log('Переключаемся на html-pdf...');
+          
+          // Fallback 2: используем html-pdf (более старая, но часто работает)
+          const options = {
+            format: 'A4',
+            border: {
+              top: '0mm',
+              right: '0mm',
+              bottom: '0mm',
+              left: '0mm'
+            },
+            type: 'pdf',
+            quality: '75',
+            phantomArgs: [
+              '--load-images=yes',
+              '--ignore-ssl-errors=yes',
+              '--ssl-protocol=any',
+              '--web-security=false'
+            ]
+          };
+          
+          pdf = await new Promise((resolve, reject) => {
+            htmlPdfLib.create(html, options).toBuffer((err, buffer) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve(buffer);
+              }
+            });
+          });
+          
+          console.log('PDF сгенерирован успешно с html-pdf, размер:', pdf.length, 'байт');
+       }
+     }
     console.log('Браузер закрыт');
     
     // Проверяем, что это действительно PDF
