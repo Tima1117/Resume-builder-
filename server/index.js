@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const PDFDocument = require('pdfkit');
+const { jsPDF } = require('jspdf');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -18,198 +18,262 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, '../client/build')));
 
-// Функция для генерации PDF с PDFKit
+// Функция для генерации PDF с jsPDF
 const generateResumePDF = (data) => {
   return new Promise((resolve, reject) => {
     try {
       const { personalInfo, workExperience, education, additionalEducation, skills, languages, qualities, aboutMe } = data;
       
-      const doc = new PDFDocument({
-        size: 'A4',
-        margin: 20
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
       });
       
-      const chunks = [];
-      doc.on('data', (chunk) => chunks.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', reject);
+      let currentY = 20;
+      const pageHeight = 280;
+      const leftMargin = 15;
+      const rightMargin = 195;
       
       // Заголовок
-      doc.fontSize(24).text(`${personalInfo.lastName} ${personalInfo.firstName}`, 50, 50);
-      
-      let currentY = 90;
+      doc.setFontSize(20);
+      doc.text(`${personalInfo.lastName} ${personalInfo.firstName}`, leftMargin, currentY);
+      currentY += 15;
       
       // Контактная информация
-      doc.fontSize(14).text('КОНТАКТЫ', 50, currentY);
-      currentY += 25;
+      doc.setFontSize(14);
+      doc.text('КОНТАКТЫ', leftMargin, currentY);
+      currentY += 10;
       
+      doc.setFontSize(10);
       if (personalInfo.phone) {
-        doc.fontSize(11).text(`Телефон: ${personalInfo.phone}`, 50, currentY);
-        currentY += 20;
+        doc.text(`Телефон: ${personalInfo.phone}`, leftMargin, currentY);
+        currentY += 6;
       }
       
       if (personalInfo.email) {
-        doc.text(`Email: ${personalInfo.email}`, 50, currentY);
-        currentY += 20;
+        doc.text(`Email: ${personalInfo.email}`, leftMargin, currentY);
+        currentY += 6;
       }
       
       if (personalInfo.location) {
-        doc.text(`Местоположение: ${personalInfo.location}`, 50, currentY);
-        currentY += 20;
+        doc.text(`Местоположение: ${personalInfo.location}`, leftMargin, currentY);
+        currentY += 6;
       }
       
       if (personalInfo.telegram) {
-        doc.text(`Telegram: ${personalInfo.telegram}`, 50, currentY);
-        currentY += 20;
+        doc.text(`Telegram: ${personalInfo.telegram}`, leftMargin, currentY);
+        currentY += 6;
       }
       
       if (personalInfo.age) {
-        doc.text(`Возраст: ${personalInfo.age}`, 50, currentY);
-        currentY += 20;
+        doc.text(`Возраст: ${personalInfo.age}`, leftMargin, currentY);
+        currentY += 6;
       }
       
-      currentY += 10;
+      currentY += 8;
       
       // О себе
       if (aboutMe && aboutMe.trim()) {
-        doc.fontSize(14).text('О СЕБЕ', 50, currentY);
-        currentY += 25;
-        doc.fontSize(11).text(aboutMe, 50, currentY, { width: 500 });
-        currentY += doc.heightOfString(aboutMe, { width: 500 }) + 20;
+        if (currentY > pageHeight - 30) {
+          doc.addPage();
+          currentY = 20;
+        }
+        
+        doc.setFontSize(14);
+        doc.text('О СЕБЕ', leftMargin, currentY);
+        currentY += 8;
+        
+        doc.setFontSize(10);
+        const aboutLines = doc.splitTextToSize(aboutMe, rightMargin - leftMargin);
+        doc.text(aboutLines, leftMargin, currentY);
+        currentY += aboutLines.length * 5 + 8;
       }
       
       // Опыт работы
       if (workExperience && workExperience.length > 0) {
-        doc.fontSize(14).text('ОПЫТ РАБОТЫ', 50, currentY);
-        currentY += 25;
+        if (currentY > pageHeight - 30) {
+          doc.addPage();
+          currentY = 20;
+        }
+        
+        doc.setFontSize(14);
+        doc.text('ОПЫТ РАБОТЫ', leftMargin, currentY);
+        currentY += 8;
         
         workExperience.forEach((work) => {
-          if (currentY > 700) {
+          if (currentY > pageHeight - 50) {
             doc.addPage();
-            currentY = 50;
+            currentY = 20;
           }
           
-          doc.fontSize(12).text(work.position, 50, currentY);
-          currentY += 18;
-          doc.fontSize(11).text(work.company, 50, currentY);
-          currentY += 15;
+          doc.setFontSize(12);
+          doc.text(work.position, leftMargin, currentY);
+          currentY += 6;
+          
+          doc.setFontSize(10);
+          doc.text(work.company, leftMargin, currentY);
+          currentY += 5;
           
           const period = work.isCurrentJob ? 
             `${work.startDate} - настоящее время` : 
             `${work.startDate} - ${work.endDate}`;
-          doc.text(period, 50, currentY);
-          currentY += 20;
+          doc.text(period, leftMargin, currentY);
+          currentY += 7;
           
           if (work.responsibilities && work.responsibilities.length > 0) {
             work.responsibilities.forEach((resp) => {
               if (typeof resp === 'string') {
-                doc.text(`- ${resp}`, 70, currentY, { width: 480 });
-                currentY += doc.heightOfString(`- ${resp}`, { width: 480 }) + 5;
+                const lines = doc.splitTextToSize(`- ${resp}`, rightMargin - leftMargin - 5);
+                doc.text(lines, leftMargin + 5, currentY);
+                currentY += lines.length * 4 + 2;
               } else if (resp.title) {
-                doc.text(`- ${resp.title}`, 70, currentY);
-                currentY += 15;
+                const titleLines = doc.splitTextToSize(`- ${resp.title}`, rightMargin - leftMargin - 5);
+                doc.text(titleLines, leftMargin + 5, currentY);
+                currentY += titleLines.length * 4 + 2;
+                
                 if (resp.subpoints && resp.subpoints.length > 0) {
                   resp.subpoints.forEach((sub) => {
-                    doc.text(`  * ${sub}`, 90, currentY, { width: 460 });
-                    currentY += doc.heightOfString(`  * ${sub}`, { width: 460 }) + 3;
+                    const subLines = doc.splitTextToSize(`  * ${sub}`, rightMargin - leftMargin - 10);
+                    doc.text(subLines, leftMargin + 10, currentY);
+                    currentY += subLines.length * 4 + 1;
                   });
                 }
               }
             });
           }
-          currentY += 15;
+          currentY += 5;
         });
       }
       
       // Образование
       if (education && education.length > 0) {
-        if (currentY > 650) {
+        if (currentY > pageHeight - 30) {
           doc.addPage();
-          currentY = 50;
+          currentY = 20;
         }
         
-        doc.fontSize(14).text('ОБРАЗОВАНИЕ', 50, currentY);
-        currentY += 25;
+        doc.setFontSize(14);
+        doc.text('ОБРАЗОВАНИЕ', leftMargin, currentY);
+        currentY += 8;
         
         education.forEach((edu) => {
-          doc.fontSize(12).text(edu.institution, 50, currentY);
-          currentY += 18;
-          doc.fontSize(11).text(`${edu.degree} - ${edu.fieldOfStudy}`, 50, currentY);
-          currentY += 15;
-          doc.text(edu.year, 50, currentY);
-          currentY += 25;
+          if (currentY > pageHeight - 20) {
+            doc.addPage();
+            currentY = 20;
+          }
+          
+          doc.setFontSize(12);
+          doc.text(edu.institution, leftMargin, currentY);
+          currentY += 6;
+          
+          doc.setFontSize(10);
+          doc.text(`${edu.degree} - ${edu.fieldOfStudy}`, leftMargin, currentY);
+          currentY += 5;
+          doc.text(edu.year, leftMargin, currentY);
+          currentY += 8;
         });
       }
       
       // Дополнительное образование
       if (additionalEducation && additionalEducation.length > 0) {
-        if (currentY > 650) {
+        if (currentY > pageHeight - 30) {
           doc.addPage();
-          currentY = 50;
+          currentY = 20;
         }
         
-        doc.fontSize(14).text('КУРСЫ', 50, currentY);
-        currentY += 25;
+        doc.setFontSize(14);
+        doc.text('КУРСЫ', leftMargin, currentY);
+        currentY += 8;
         
         additionalEducation.forEach((course) => {
-          doc.fontSize(12).text(course.courseName, 50, currentY);
-          currentY += 18;
-          doc.fontSize(11).text(course.institution, 50, currentY);
-          currentY += 15;
-          doc.text(course.year, 50, currentY);
-          currentY += 25;
+          if (currentY > pageHeight - 20) {
+            doc.addPage();
+            currentY = 20;
+          }
+          
+          doc.setFontSize(12);
+          doc.text(course.courseName, leftMargin, currentY);
+          currentY += 6;
+          
+          doc.setFontSize(10);
+          doc.text(course.institution, leftMargin, currentY);
+          currentY += 5;
+          doc.text(course.year, leftMargin, currentY);
+          currentY += 8;
         });
       }
       
       // Навыки
       if (skills && skills.length > 0) {
-        if (currentY > 650) {
+        if (currentY > pageHeight - 30) {
           doc.addPage();
-          currentY = 50;
+          currentY = 20;
         }
         
-        doc.fontSize(14).text('НАВЫКИ / ТЕХНОЛОГИИ', 50, currentY);
-        currentY += 25;
+        doc.setFontSize(14);
+        doc.text('НАВЫКИ / ТЕХНОЛОГИИ', leftMargin, currentY);
+        currentY += 8;
         
+        doc.setFontSize(10);
         skills.forEach((skill) => {
-          doc.fontSize(11).text(`- ${skill.name} - ${skill.level}`, 50, currentY);
-          currentY += 18;
+          if (currentY > pageHeight - 10) {
+            doc.addPage();
+            currentY = 20;
+          }
+          doc.text(`- ${skill.name} - ${skill.level}`, leftMargin, currentY);
+          currentY += 5;
         });
+        currentY += 5;
       }
       
       // Языки
       if (languages && languages.length > 0) {
-        if (currentY > 650) {
+        if (currentY > pageHeight - 30) {
           doc.addPage();
-          currentY = 50;
+          currentY = 20;
         }
         
-        doc.fontSize(14).text('ЯЗЫКИ', 50, currentY);
-        currentY += 25;
+        doc.setFontSize(14);
+        doc.text('ЯЗЫКИ', leftMargin, currentY);
+        currentY += 8;
         
+        doc.setFontSize(10);
         languages.forEach((lang) => {
-          doc.fontSize(11).text(`- ${lang.language} - ${lang.level}`, 50, currentY);
-          currentY += 18;
+          if (currentY > pageHeight - 10) {
+            doc.addPage();
+            currentY = 20;
+          }
+          doc.text(`- ${lang.language} - ${lang.level}`, leftMargin, currentY);
+          currentY += 5;
         });
+        currentY += 5;
       }
       
       // Личные качества
       if (qualities && qualities.length > 0) {
-        if (currentY > 650) {
+        if (currentY > pageHeight - 30) {
           doc.addPage();
-          currentY = 50;
+          currentY = 20;
         }
         
-        doc.fontSize(14).text('ЛИЧНЫЕ КАЧЕСТВА', 50, currentY);
-        currentY += 25;
+        doc.setFontSize(14);
+        doc.text('ЛИЧНЫЕ КАЧЕСТВА', leftMargin, currentY);
+        currentY += 8;
         
+        doc.setFontSize(10);
         qualities.forEach((quality) => {
-          doc.fontSize(11).text(`- ${quality}`, 50, currentY);
-          currentY += 18;
+          if (currentY > pageHeight - 10) {
+            doc.addPage();
+            currentY = 20;
+          }
+          doc.text(`- ${quality}`, leftMargin, currentY);
+          currentY += 5;
         });
       }
       
-      doc.end();
+      const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+      resolve(pdfBuffer);
       
     } catch (error) {
       reject(error);
@@ -856,10 +920,10 @@ app.post('/api/generate-pdf', async (req, res) => {
       education: resumeData.education?.length || 0
     });
     
-        // Генерируем PDF с PDFKit
-    console.log('Генерируем PDF с PDFKit...');
+        // Генерируем PDF с jsPDF
+    console.log('Генерируем PDF с jsPDF...');
     const pdf = await generateResumePDF(resumeData);
-    console.log('PDF сгенерирован успешно с PDFKit, размер:', pdf.length, 'байт');
+    console.log('PDF сгенерирован успешно с jsPDF, размер:', pdf.length, 'байт');
     
     // Проверяем, что это действительно PDF
     const pdfHeaderBytes = pdf.slice(0, 8);
