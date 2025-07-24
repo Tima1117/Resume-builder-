@@ -675,14 +675,29 @@ app.post('/api/generate-pdf', async (req, res) => {
     if (isVercel) {
       console.log('Запуск в Vercel окружении с chrome-aws-lambda');
       
-      // Используем chrome-aws-lambda для Vercel
-      browser = await puppeteerCore.launch({
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath,
-        headless: chromium.headless,
-        ignoreHTTPSErrors: true,
-      });
+      try {
+        const executablePath = await chromium.executablePath;
+        console.log('Chrome executable path:', executablePath);
+        console.log('Chrome args:', chromium.args);
+        
+        // Используем chrome-aws-lambda для Vercel
+        browser = await puppeteerCore.launch({
+          args: [
+            ...chromium.args,
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor'
+          ],
+          defaultViewport: chromium.defaultViewport,
+          executablePath: executablePath,
+          headless: true,
+          ignoreHTTPSErrors: true,
+        });
+        
+        console.log('Браузер chrome-aws-lambda запущен успешно');
+      } catch (chromeError) {
+        console.error('Ошибка запуска chrome-aws-lambda:', chromeError.message);
+        throw chromeError;
+      }
     } else {
       console.log('Запуск в локальном окружении');
       
@@ -780,57 +795,10 @@ app.post('/api/generate-pdf', async (req, res) => {
   } catch (error) {
     console.error('Ошибка при генерации PDF:', error.message);
     console.error('Stack trace:', error.stack);
-    
-    // Если основной метод не сработал, пробуем без указания пути к браузеру
-    try {
-      console.log('Пробуем запустить с встроенным браузером Puppeteer...');
-      const browser = await puppeteer.launch({
-        headless: 'new',
-        args: [
-          '--no-sandbox', 
-          '--disable-setuid-sandbox',
-          '--disable-web-security',
-          '--disable-dev-shm-usage',
-          '--no-first-run',
-          '--disable-gpu'
-        ]
-      });
-      
-      const html = generateResumeHTML(req.body);
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
-      
-      const pdf = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: {
-          top: '0mm',
-          right: '0mm',
-          bottom: '0mm',
-          left: '0mm'
-        }
-      });
-      
-      await browser.close();
-      
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Length', pdf.length.toString());
-      res.setHeader('Cache-Control', 'no-cache');
-      const firstName2 = transliterate(req.body.personalInfo.firstName || 'User');
-      const lastName2 = transliterate(req.body.personalInfo.lastName || 'Resume');
-      const safeFileName2 = `${lastName2}_${firstName2}_Resume.pdf`
-        .replace(/[^\w\-_\.]/g, '_'); // Убираем оставшиеся небезопасные символы
-      res.setHeader('Content-Disposition', `attachment; filename="${safeFileName2}"`);
-      res.end(pdf); // Используем res.end() вместо res.send()
-      
-    } catch (altError) {
-      console.error('Встроенный браузер тоже не работает:', altError.message);
-      res.status(500).json({ 
-        error: 'Ошибка при генерации PDF. Попробуйте установить Google Chrome.',
-        details: altError.message,
-        troubleshooting: 'Установите Google Chrome или попробуйте перезапустить сервер'
-      });
-    }
+    res.status(500).json({ 
+      error: 'Ошибка генерации PDF. Попробуйте позже.',
+      details: error.message
+    });
   }
 });
 
