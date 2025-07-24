@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const chromium = require('chrome-aws-lambda');
+const chromium = require('@sparticuz/chromium');
 const puppeteerCore = require('puppeteer-core');
 
 const app = express();
@@ -673,29 +673,24 @@ app.post('/api/generate-pdf', async (req, res) => {
     let browser;
     
     if (isVercel) {
-      console.log('Запуск в Vercel окружении с chrome-aws-lambda');
+      console.log('Запуск в Vercel окружении с @sparticuz/chromium');
       
       try {
-        const executablePath = await chromium.executablePath;
+        const executablePath = await chromium.executablePath();
         console.log('Chrome executable path:', executablePath);
-        console.log('Chrome args:', chromium.args);
         
-        // Используем chrome-aws-lambda для Vercel
+        // Используем @sparticuz/chromium для Vercel
         browser = await puppeteerCore.launch({
-          args: [
-            ...chromium.args,
-            '--disable-web-security',
-            '--disable-features=VizDisplayCompositor'
-          ],
+          args: chromium.args,
           defaultViewport: chromium.defaultViewport,
           executablePath: executablePath,
-          headless: true,
+          headless: 'new',
           ignoreHTTPSErrors: true,
         });
         
-        console.log('Браузер chrome-aws-lambda запущен успешно');
+        console.log('Браузер @sparticuz/chromium запущен успешно');
       } catch (chromeError) {
-        console.error('Ошибка запуска chrome-aws-lambda:', chromeError.message);
+        console.error('Ошибка запуска @sparticuz/chromium:', chromeError.message);
         throw chromeError;
       }
     } else {
@@ -722,7 +717,7 @@ app.post('/api/generate-pdf', async (req, res) => {
       }
       
              const browserOptions = {
-         headless: true,
+         headless: 'new',
          args: [
            '--no-sandbox', 
            '--disable-setuid-sandbox',
