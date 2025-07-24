@@ -676,17 +676,60 @@ app.post('/api/generate-pdf', async (req, res) => {
       console.log('Запуск в Vercel окружении с @sparticuz/chromium');
       
       try {
-        const executablePath = await chromium.executablePath();
-        console.log('Chrome executable path:', executablePath);
+        // Сначала пытаемся с executablePath
+        let executablePath;
+        try {
+          executablePath = await chromium.executablePath();
+          console.log('Chrome executable path:', executablePath);
+        } catch (pathError) {
+          console.log('Не удалось получить executablePath, используем системный Chrome');
+          executablePath = null;
+        }
         
-        // Используем @sparticuz/chromium для Vercel
-        browser = await puppeteerCore.launch({
-          args: chromium.args,
-          defaultViewport: chromium.defaultViewport,
-          executablePath: executablePath,
+        const launchOptions = {
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor,AudioServiceOutOfProcess',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
+            '--disable-extensions',
+            '--disable-plugins',
+            '--disable-sync',
+            '--hide-scrollbars',
+            '--mute-audio',
+            '--no-first-run',
+            '--safebrowsing-disable-auto-update',
+            '--ignore-certificate-errors',
+            '--ignore-ssl-errors',
+            '--ignore-certificate-errors-spki-list',
+            '--disable-accelerated-2d-canvas',
+            '--disable-background-networking',
+            '--disable-default-apps',
+            '--disable-extensions',
+            '--disable-sync',
+            '--metrics-recording-only',
+            '--no-default-browser-check',
+            '--no-first-run',
+            '--safebrowsing-disable-auto-update',
+            '--single-process',
+            '--no-zygote'
+          ],
           headless: 'new',
           ignoreHTTPSErrors: true,
-        });
+          ignoreDefaultArgs: ['--disable-extensions'],
+        };
+        
+        if (executablePath) {
+          launchOptions.executablePath = executablePath;
+        }
+        
+        // Используем @sparticuz/chromium для Vercel
+        browser = await puppeteerCore.launch(launchOptions);
         
         console.log('Браузер @sparticuz/chromium запущен успешно');
       } catch (chromeError) {
