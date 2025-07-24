@@ -2,9 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const { chromium } = require('playwright');
-const htmlPdf = require('html-pdf-node');
-const htmlPdfLib = require('html-pdf');
+const PDFDocument = require('pdfkit');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -19,6 +17,153 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, '../client/build')));
+
+// Функция для генерации PDF с PDFKit
+const generateResumePDF = (data) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const { personalInfo, workExperience, education, additionalEducation, skills, languages, qualities, aboutMe } = data;
+      
+      const doc = new PDFDocument({
+        size: 'A4',
+        margin: 20
+      });
+      
+      const chunks = [];
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+      
+      // Заголовок
+      doc.fontSize(24).font('Helvetica-Bold').text(`${personalInfo.lastName} ${personalInfo.firstName}`, 50, 50);
+      
+      let currentY = 90;
+      
+      // Контактная информация
+      doc.fontSize(14).font('Helvetica-Bold').text('КОНТАКТЫ', 50, currentY);
+      currentY += 25;
+      
+      if (personalInfo.phone) {
+        doc.fontSize(11).font('Helvetica').text(`📞 ${personalInfo.phone}`, 50, currentY);
+        currentY += 20;
+      }
+      
+      if (personalInfo.email) {
+        doc.text(`✉️ ${personalInfo.email}`, 50, currentY);
+        currentY += 20;
+      }
+      
+      if (personalInfo.location) {
+        doc.text(`📍 ${personalInfo.location}`, 50, currentY);
+        currentY += 20;
+      }
+      
+      if (personalInfo.telegram) {
+        doc.text(`📱 ${personalInfo.telegram}`, 50, currentY);
+        currentY += 20;
+      }
+      
+      if (personalInfo.age) {
+        doc.text(`🎂 Возраст: ${personalInfo.age}`, 50, currentY);
+        currentY += 20;
+      }
+      
+      currentY += 10;
+      
+      // О себе
+      if (aboutMe && aboutMe.trim()) {
+        doc.fontSize(14).font('Helvetica-Bold').text('О СЕБЕ', 50, currentY);
+        currentY += 25;
+        doc.fontSize(11).font('Helvetica').text(aboutMe, 50, currentY, { width: 500 });
+        currentY += doc.heightOfString(aboutMe, { width: 500 }) + 20;
+      }
+      
+      // Опыт работы
+      if (workExperience && workExperience.length > 0) {
+        doc.fontSize(14).font('Helvetica-Bold').text('ОПЫТ РАБОТЫ', 50, currentY);
+        currentY += 25;
+        
+        workExperience.forEach((work) => {
+          if (currentY > 700) {
+            doc.addPage();
+            currentY = 50;
+          }
+          
+          doc.fontSize(12).font('Helvetica-Bold').text(work.position, 50, currentY);
+          currentY += 18;
+          doc.fontSize(11).font('Helvetica').text(work.company, 50, currentY);
+          currentY += 15;
+          
+          const period = work.isCurrentJob ? 
+            `${work.startDate} - настоящее время` : 
+            `${work.startDate} - ${work.endDate}`;
+          doc.text(period, 50, currentY);
+          currentY += 20;
+          
+          if (work.responsibilities && work.responsibilities.length > 0) {
+            work.responsibilities.forEach((resp) => {
+              if (typeof resp === 'string') {
+                doc.text(`• ${resp}`, 70, currentY, { width: 480 });
+                currentY += doc.heightOfString(`• ${resp}`, { width: 480 }) + 5;
+              } else if (resp.title) {
+                doc.font('Helvetica-Bold').text(`• ${resp.title}`, 70, currentY);
+                currentY += 15;
+                if (resp.subpoints && resp.subpoints.length > 0) {
+                  resp.subpoints.forEach((sub) => {
+                    doc.font('Helvetica').text(`  - ${sub}`, 90, currentY, { width: 460 });
+                    currentY += doc.heightOfString(`  - ${sub}`, { width: 460 }) + 3;
+                  });
+                }
+              }
+            });
+          }
+          currentY += 15;
+        });
+      }
+      
+      // Образование
+      if (education && education.length > 0) {
+        if (currentY > 650) {
+          doc.addPage();
+          currentY = 50;
+        }
+        
+        doc.fontSize(14).font('Helvetica-Bold').text('ОБРАЗОВАНИЕ', 50, currentY);
+        currentY += 25;
+        
+        education.forEach((edu) => {
+          doc.fontSize(12).font('Helvetica-Bold').text(edu.institution, 50, currentY);
+          currentY += 18;
+          doc.fontSize(11).font('Helvetica').text(`${edu.degree} - ${edu.fieldOfStudy}`, 50, currentY);
+          currentY += 15;
+          doc.text(edu.year, 50, currentY);
+          currentY += 25;
+        });
+      }
+      
+      // Навыки
+      if (skills && skills.length > 0) {
+        if (currentY > 650) {
+          doc.addPage();
+          currentY = 50;
+        }
+        
+        doc.fontSize(14).font('Helvetica-Bold').text('НАВЫКИ / ТЕХНОЛОГИИ', 50, currentY);
+        currentY += 25;
+        
+        skills.forEach((skill) => {
+          doc.fontSize(11).font('Helvetica').text(`• ${skill.name} - ${skill.level}`, 50, currentY);
+          currentY += 18;
+        });
+      }
+      
+      doc.end();
+      
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
 
 // Функция для генерации HTML резюме
 const generateResumeHTML = (data) => {
@@ -659,137 +804,10 @@ app.post('/api/generate-pdf', async (req, res) => {
       education: resumeData.education?.length || 0
     });
     
-    // Генерируем HTML
-    const html = generateResumeHTML(resumeData);
-    console.log('HTML сгенерирован успешно, размер:', html.length, 'символов');
-    
-    // Проверяем HTML на наличие ошибок
-    if (html.includes('undefined') || html.includes('[object Object]')) {
-      console.error('HTML содержит ошибки!');
-      return res.status(500).json({ error: 'Ошибка в данных резюме' });
-    }
-    
-        let pdf;
-    
-    try {
-      // Пытаемся использовать Playwright
-      console.log('Запускаем Playwright...');
-      
-      const isVercel = process.env.VERCEL || process.env.VERCEL_ENV;
-      
-      const launchOptions = {
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--disable-web-security'
-        ]
-      };
-      
-      if (isVercel) {
-        console.log('Vercel окружение обнаружено');
-        launchOptions.args.push(
-          '--single-process',
-          '--no-zygote',
-          '--disable-background-timer-throttling',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-renderer-backgrounding'
-        );
-      } else {
-        console.log('Локальное окружение');
-      }
-      
-      const browser = await chromium.launch(launchOptions);
-      console.log('Playwright браузер запущен успешно');
-      const page = await browser.newPage();
-      
-      // Устанавливаем HTML контент
-      console.log('Устанавливаем HTML контент...');
-      await page.setContent(html, { waitUntil: 'networkidle0' });
-      console.log('HTML контент установлен');
-      
-      // Генерируем PDF
-      console.log('Начинаем генерацию PDF...');
-      pdf = await page.pdf({
-        format: 'A4',
-        printBackground: true,
-        margin: {
-          top: '0mm',
-          right: '0mm',
-          bottom: '0mm',
-          left: '0mm'
-        }
-      });
-      
-      console.log('PDF сгенерирован успешно с Playwright, размер:', pdf.length, 'байт');
-      await browser.close();
-      
-         } catch (playwrightError) {
-       console.error('Playwright не работает:', playwrightError.message);
-       console.log('Переключаемся на html-pdf-node...');
-       
-       try {
-         // Fallback 1: используем html-pdf-node
-         const options = {
-           format: 'A4',
-           printBackground: true,
-           margin: {
-             top: '0mm',
-             right: '0mm',
-             bottom: '0mm',
-             left: '0mm'
-           },
-           args: [
-             '--no-sandbox',
-             '--disable-setuid-sandbox',
-             '--disable-dev-shm-usage',
-             '--disable-gpu'
-           ]
-         };
-         
-         const file = { content: html };
-         pdf = await htmlPdf.generatePdf(file, options);
-         console.log('PDF сгенерирован успешно с html-pdf-node, размер:', pdf.length, 'байт');
-         
-       } catch (htmlPdfError) {
-         console.error('html-pdf-node тоже не работает:', htmlPdfError.message);
-                   console.log('Переключаемся на html-pdf...');
-          
-          // Fallback 2: используем html-pdf (более старая, но часто работает)
-          const options = {
-            format: 'A4',
-            border: {
-              top: '0mm',
-              right: '0mm',
-              bottom: '0mm',
-              left: '0mm'
-            },
-            type: 'pdf',
-            quality: '75',
-            phantomArgs: [
-              '--load-images=yes',
-              '--ignore-ssl-errors=yes',
-              '--ssl-protocol=any',
-              '--web-security=false'
-            ]
-          };
-          
-          pdf = await new Promise((resolve, reject) => {
-            htmlPdfLib.create(html, options).toBuffer((err, buffer) => {
-              if (err) {
-                reject(err);
-              } else {
-                resolve(buffer);
-              }
-            });
-          });
-          
-          console.log('PDF сгенерирован успешно с html-pdf, размер:', pdf.length, 'байт');
-       }
-     }
-    console.log('Браузер закрыт');
+        // Генерируем PDF с PDFKit
+    console.log('Генерируем PDF с PDFKit...');
+    const pdf = await generateResumePDF(resumeData);
+    console.log('PDF сгенерирован успешно с PDFKit, размер:', pdf.length, 'байт');
     
     // Проверяем, что это действительно PDF
     const pdfHeaderBytes = pdf.slice(0, 8);
