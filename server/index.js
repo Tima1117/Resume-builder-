@@ -3,6 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const { chromium } = require('playwright');
+const htmlPdf = require('html-pdf-node');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -667,59 +668,89 @@ app.post('/api/generate-pdf', async (req, res) => {
       return res.status(500).json({ error: 'Ошибка в данных резюме' });
     }
     
-        // Запуск браузера с Playwright
-    console.log('Запускаем Playwright...');
+        let pdf;
     
-    const isVercel = process.env.VERCEL || process.env.VERCEL_ENV;
-    
-    const launchOptions = {
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-web-security'
-      ]
-    };
-    
-    if (isVercel) {
-      console.log('Vercel окружение обнаружено');
-      launchOptions.args.push(
-        '--single-process',
-        '--no-zygote',
-        '--disable-background-timer-throttling',
-        '--disable-backgrounding-occluded-windows',
-        '--disable-renderer-backgrounding'
-      );
-    } else {
-      console.log('Локальное окружение');
-    }
-    
-    const browser = await chromium.launch(launchOptions);
-    console.log('Playwright браузер запущен успешно');
-    const page = await browser.newPage();
-    
-    // Устанавливаем HTML контент
-    console.log('Устанавливаем HTML контент...');
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    console.log('HTML контент установлен');
-    
-    // Генерируем PDF
-    console.log('Начинаем генерацию PDF...');
-    const pdf = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: {
-        top: '0mm',
-        right: '0mm',
-        bottom: '0mm',
-        left: '0mm'
+    try {
+      // Пытаемся использовать Playwright
+      console.log('Запускаем Playwright...');
+      
+      const isVercel = process.env.VERCEL || process.env.VERCEL_ENV;
+      
+      const launchOptions = {
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--disable-web-security'
+        ]
+      };
+      
+      if (isVercel) {
+        console.log('Vercel окружение обнаружено');
+        launchOptions.args.push(
+          '--single-process',
+          '--no-zygote',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding'
+        );
+      } else {
+        console.log('Локальное окружение');
       }
-    });
-    
-    console.log('PDF сгенерирован успешно, размер:', pdf.length, 'байт');
-    await browser.close();
+      
+      const browser = await chromium.launch(launchOptions);
+      console.log('Playwright браузер запущен успешно');
+      const page = await browser.newPage();
+      
+      // Устанавливаем HTML контент
+      console.log('Устанавливаем HTML контент...');
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      console.log('HTML контент установлен');
+      
+      // Генерируем PDF
+      console.log('Начинаем генерацию PDF...');
+      pdf = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '0mm',
+          right: '0mm',
+          bottom: '0mm',
+          left: '0mm'
+        }
+      });
+      
+      console.log('PDF сгенерирован успешно с Playwright, размер:', pdf.length, 'байт');
+      await browser.close();
+      
+    } catch (playwrightError) {
+      console.error('Playwright не работает:', playwrightError.message);
+      console.log('Переключаемся на html-pdf-node...');
+      
+      // Fallback: используем html-pdf-node
+      const options = {
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '0mm',
+          right: '0mm',
+          bottom: '0mm',
+          left: '0mm'
+        },
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu'
+        ]
+      };
+      
+      const file = { content: html };
+      pdf = await htmlPdf.generatePdf(file, options);
+      console.log('PDF сгенерирован успешно с html-pdf-node, размер:', pdf.length, 'байт');
+    }
     console.log('Браузер закрыт');
     
     // Проверяем, что это действительно PDF
