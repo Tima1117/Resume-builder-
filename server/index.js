@@ -35,36 +35,36 @@ const generateResumePDF = (data) => {
       doc.on('error', reject);
       
       // Заголовок
-      doc.fontSize(24).font('Helvetica-Bold').text(`${personalInfo.lastName} ${personalInfo.firstName}`, 50, 50);
+      doc.fontSize(24).text(`${personalInfo.lastName} ${personalInfo.firstName}`, 50, 50);
       
       let currentY = 90;
       
       // Контактная информация
-      doc.fontSize(14).font('Helvetica-Bold').text('КОНТАКТЫ', 50, currentY);
+      doc.fontSize(14).text('КОНТАКТЫ', 50, currentY);
       currentY += 25;
       
       if (personalInfo.phone) {
-        doc.fontSize(11).font('Helvetica').text(`📞 ${personalInfo.phone}`, 50, currentY);
+        doc.fontSize(11).text(`Телефон: ${personalInfo.phone}`, 50, currentY);
         currentY += 20;
       }
       
       if (personalInfo.email) {
-        doc.text(`✉️ ${personalInfo.email}`, 50, currentY);
+        doc.text(`Email: ${personalInfo.email}`, 50, currentY);
         currentY += 20;
       }
       
       if (personalInfo.location) {
-        doc.text(`📍 ${personalInfo.location}`, 50, currentY);
+        doc.text(`Местоположение: ${personalInfo.location}`, 50, currentY);
         currentY += 20;
       }
       
       if (personalInfo.telegram) {
-        doc.text(`📱 ${personalInfo.telegram}`, 50, currentY);
+        doc.text(`Telegram: ${personalInfo.telegram}`, 50, currentY);
         currentY += 20;
       }
       
       if (personalInfo.age) {
-        doc.text(`🎂 Возраст: ${personalInfo.age}`, 50, currentY);
+        doc.text(`Возраст: ${personalInfo.age}`, 50, currentY);
         currentY += 20;
       }
       
@@ -72,15 +72,15 @@ const generateResumePDF = (data) => {
       
       // О себе
       if (aboutMe && aboutMe.trim()) {
-        doc.fontSize(14).font('Helvetica-Bold').text('О СЕБЕ', 50, currentY);
+        doc.fontSize(14).text('О СЕБЕ', 50, currentY);
         currentY += 25;
-        doc.fontSize(11).font('Helvetica').text(aboutMe, 50, currentY, { width: 500 });
+        doc.fontSize(11).text(aboutMe, 50, currentY, { width: 500 });
         currentY += doc.heightOfString(aboutMe, { width: 500 }) + 20;
       }
       
       // Опыт работы
       if (workExperience && workExperience.length > 0) {
-        doc.fontSize(14).font('Helvetica-Bold').text('ОПЫТ РАБОТЫ', 50, currentY);
+        doc.fontSize(14).text('ОПЫТ РАБОТЫ', 50, currentY);
         currentY += 25;
         
         workExperience.forEach((work) => {
@@ -89,9 +89,9 @@ const generateResumePDF = (data) => {
             currentY = 50;
           }
           
-          doc.fontSize(12).font('Helvetica-Bold').text(work.position, 50, currentY);
+          doc.fontSize(12).text(work.position, 50, currentY);
           currentY += 18;
-          doc.fontSize(11).font('Helvetica').text(work.company, 50, currentY);
+          doc.fontSize(11).text(work.company, 50, currentY);
           currentY += 15;
           
           const period = work.isCurrentJob ? 
@@ -103,15 +103,15 @@ const generateResumePDF = (data) => {
           if (work.responsibilities && work.responsibilities.length > 0) {
             work.responsibilities.forEach((resp) => {
               if (typeof resp === 'string') {
-                doc.text(`• ${resp}`, 70, currentY, { width: 480 });
-                currentY += doc.heightOfString(`• ${resp}`, { width: 480 }) + 5;
+                doc.text(`- ${resp}`, 70, currentY, { width: 480 });
+                currentY += doc.heightOfString(`- ${resp}`, { width: 480 }) + 5;
               } else if (resp.title) {
-                doc.font('Helvetica-Bold').text(`• ${resp.title}`, 70, currentY);
+                doc.text(`- ${resp.title}`, 70, currentY);
                 currentY += 15;
                 if (resp.subpoints && resp.subpoints.length > 0) {
                   resp.subpoints.forEach((sub) => {
-                    doc.font('Helvetica').text(`  - ${sub}`, 90, currentY, { width: 460 });
-                    currentY += doc.heightOfString(`  - ${sub}`, { width: 460 }) + 3;
+                    doc.text(`  * ${sub}`, 90, currentY, { width: 460 });
+                    currentY += doc.heightOfString(`  * ${sub}`, { width: 460 }) + 3;
                   });
                 }
               }
@@ -128,15 +128,35 @@ const generateResumePDF = (data) => {
           currentY = 50;
         }
         
-        doc.fontSize(14).font('Helvetica-Bold').text('ОБРАЗОВАНИЕ', 50, currentY);
+        doc.fontSize(14).text('ОБРАЗОВАНИЕ', 50, currentY);
         currentY += 25;
         
         education.forEach((edu) => {
-          doc.fontSize(12).font('Helvetica-Bold').text(edu.institution, 50, currentY);
+          doc.fontSize(12).text(edu.institution, 50, currentY);
           currentY += 18;
-          doc.fontSize(11).font('Helvetica').text(`${edu.degree} - ${edu.fieldOfStudy}`, 50, currentY);
+          doc.fontSize(11).text(`${edu.degree} - ${edu.fieldOfStudy}`, 50, currentY);
           currentY += 15;
           doc.text(edu.year, 50, currentY);
+          currentY += 25;
+        });
+      }
+      
+      // Дополнительное образование
+      if (additionalEducation && additionalEducation.length > 0) {
+        if (currentY > 650) {
+          doc.addPage();
+          currentY = 50;
+        }
+        
+        doc.fontSize(14).text('КУРСЫ', 50, currentY);
+        currentY += 25;
+        
+        additionalEducation.forEach((course) => {
+          doc.fontSize(12).text(course.courseName, 50, currentY);
+          currentY += 18;
+          doc.fontSize(11).text(course.institution, 50, currentY);
+          currentY += 15;
+          doc.text(course.year, 50, currentY);
           currentY += 25;
         });
       }
@@ -148,11 +168,43 @@ const generateResumePDF = (data) => {
           currentY = 50;
         }
         
-        doc.fontSize(14).font('Helvetica-Bold').text('НАВЫКИ / ТЕХНОЛОГИИ', 50, currentY);
+        doc.fontSize(14).text('НАВЫКИ / ТЕХНОЛОГИИ', 50, currentY);
         currentY += 25;
         
         skills.forEach((skill) => {
-          doc.fontSize(11).font('Helvetica').text(`• ${skill.name} - ${skill.level}`, 50, currentY);
+          doc.fontSize(11).text(`- ${skill.name} - ${skill.level}`, 50, currentY);
+          currentY += 18;
+        });
+      }
+      
+      // Языки
+      if (languages && languages.length > 0) {
+        if (currentY > 650) {
+          doc.addPage();
+          currentY = 50;
+        }
+        
+        doc.fontSize(14).text('ЯЗЫКИ', 50, currentY);
+        currentY += 25;
+        
+        languages.forEach((lang) => {
+          doc.fontSize(11).text(`- ${lang.language} - ${lang.level}`, 50, currentY);
+          currentY += 18;
+        });
+      }
+      
+      // Личные качества
+      if (qualities && qualities.length > 0) {
+        if (currentY > 650) {
+          doc.addPage();
+          currentY = 50;
+        }
+        
+        doc.fontSize(14).text('ЛИЧНЫЕ КАЧЕСТВА', 50, currentY);
+        currentY += 25;
+        
+        qualities.forEach((quality) => {
+          doc.fontSize(11).text(`- ${quality}`, 50, currentY);
           currentY += 18;
         });
       }
