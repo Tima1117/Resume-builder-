@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Download, Printer, FileText } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { ResumeData } from '../types/Resume';
@@ -13,32 +13,39 @@ interface ResumePreviewProps {
 const ResumePreview: React.FC<ResumePreviewProps> = ({ data, onBack }) => {
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleDownloadPDF = async () => {
+  const handleDownloadTXT = async () => {
     try {
       setIsGenerating(true);
-      toast.loading('Генерируем PDF...', { id: 'pdf-generation' });
+      toast.loading('Генерируем текстовый файл...', { id: 'txt-generation' });
       
       const response = await axios.post('/api/generate-pdf', data, {
         responseType: 'blob'
       });
 
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const blob = new Blob([response.data], { type: 'text/plain' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${data.personalInfo.lastName}_${data.personalInfo.firstName}_Resume.pdf`;
+      link.download = `${data.personalInfo.lastName}_${data.personalInfo.firstName}_Resume.txt`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      toast.success('PDF успешно скачан!', { id: 'pdf-generation' });
+      toast.success('Текстовый файл успешно скачан!', { id: 'txt-generation' });
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast.error('Ошибка при генерации PDF', { id: 'pdf-generation' });
+      console.error('Error generating text file:', error);
+      toast.error('Ошибка при генерации текстового файла', { id: 'txt-generation' });
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handlePrint = () => {
+    toast.success('Откроется диалог печати. Выберите "Сохранить как PDF" для создания PDF-файла!');
+    setTimeout(() => {
+      window.print();
+    }, 1000);
   };
 
   const renderSkillLevel = (level: string) => {
@@ -66,13 +73,29 @@ const ResumePreview: React.FC<ResumePreviewProps> = ({ data, onBack }) => {
         </button>
         <div className="preview-actions">
           <button
-            onClick={handleDownloadPDF}
+            onClick={handlePrint}
+            className="print-button"
+            title="Откроется диалог печати. Выберите 'Сохранить как PDF' для создания красивого PDF-файла"
+          >
+            <Printer size={20} />
+            Печать / PDF
+          </button>
+          <button
+            onClick={handleDownloadTXT}
             disabled={isGenerating}
             className="download-button"
+            title="Скачать резюме в текстовом формате (запасной вариант)"
           >
-            <Download size={20} />
-            {isGenerating ? 'Генерация...' : 'Скачать PDF'}
+            <FileText size={20} />
+            {isGenerating ? 'Генерация...' : 'Скачать TXT'}
           </button>
+        </div>
+        
+        <div className="print-instructions">
+          <p>💡 <strong>Как получить красивый PDF:</strong></p>
+          <p>1. Нажмите кнопку "Печать / PDF"</p>
+          <p>2. В диалоге печати выберите "Сохранить как PDF"</p>
+          <p>3. Получите профессионально оформленное резюме!</p>
         </div>
       </div>
 

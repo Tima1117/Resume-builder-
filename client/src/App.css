@@ -320,7 +320,7 @@ body {
   margin-bottom: 30px;
 }
 
-.back-button, .download-button {
+.back-button, .download-button, .print-button {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -342,18 +342,50 @@ body {
   background: #7f8c8d;
 }
 
+.print-button {
+  background: #e74c3c;
+  color: white;
+}
+
+.print-button:hover {
+  background: #c0392b;
+}
+
 .download-button {
-  background: #27ae60;
+  background: #3498db;
   color: white;
 }
 
 .download-button:hover:not(:disabled) {
-  background: #229954;
+  background: #2980b9;
 }
 
 .download-button:disabled {
   background: #bdc3c7;
   cursor: not-allowed;
+}
+
+.preview-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.print-instructions {
+  background: #e8f5e8;
+  border: 1px solid #4caf50;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 16px;
+  font-size: 14px;
+}
+
+.print-instructions p {
+  margin: 4px 0;
+  color: #2d5016;
+}
+
+.print-instructions strong {
+  color: #1b5e20;
 }
 
 /* Resume Page */
@@ -1361,4 +1393,66 @@ h1, h2, h3 {
 
 .clear-form-btn:active {
   transform: translateY(0);
+}
+
+/* Print Styles */
+@media print {
+  /* Скрыть все элементы управления */
+  .preview-header,
+  .back-button,
+  .print-button,
+  .download-button,
+  .preview-actions,
+  .print-instructions {
+    display: none !important;
+  }
+  
+  /* Оптимизировать макет для печати */
+  .resume-preview {
+    padding: 0 !important;
+    background: none !important;
+    min-height: auto !important;
+  }
+  
+  .resume-container {
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+    background: white !important;
+  }
+  
+  .resume-page {
+    page-break-inside: avoid !important;
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 20mm !important;
+    min-height: auto !important;
+  }
+  
+  /* Оптимизировать шрифты для печати */
+  body, html {
+    font-size: 12pt !important;
+    line-height: 1.3 !important;
+    color: black !important;
+    background: white !important;
+  }
+  
+  /* Убрать тени и эффекты */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  
+  /* Обеспечить правильные разрывы страниц */
+  .section {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  
+  .work-item, .education-item {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
 }

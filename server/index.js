@@ -18,144 +18,125 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, '../client/build')));
 
-// Функция для генерации PDF через внешний API
+// Функция для генерации текстового резюме с правильной кодировкой
 const generateResumePDF = async (data) => {
-  try {
-    const html = generateResumeHTML(data);
-    
-    // Попробуем использовать бесплатный API htmlcsstoimage.com
-    const response = await axios.post('https://hcti.io/v1/image', {
-      html: html,
-      css: `
-        body { 
-          font-family: Arial, sans-serif; 
-          margin: 0; 
-          padding: 20px; 
-          background: white;
-          font-size: 12px;
-          line-height: 1.4;
-        }
-        .resume-header h1 { 
-          font-size: 24px; 
-          margin-bottom: 10px; 
-        }
-        .contact-info { 
-          margin-bottom: 20px; 
-        }
-        .section-title { 
-          font-size: 16px; 
-          font-weight: bold; 
-          margin: 20px 0 10px 0; 
-          border-bottom: 1px solid #ccc; 
-          padding-bottom: 5px; 
-        }
-        .work-item, .education-item { 
-          margin-bottom: 15px; 
-        }
-        .job-title { 
-          font-weight: bold; 
-          font-size: 14px; 
-        }
-        .company { 
-          color: #666; 
-          margin: 2px 0; 
-        }
-        .period { 
-          color: #888; 
-          font-size: 11px; 
-        }
-        ul { 
-          margin: 5px 0; 
-          padding-left: 20px; 
-        }
-        li { 
-          margin: 2px 0; 
-        }
-      `,
-      format: 'pdf'
-    }, {
-      auth: {
-        username: 'demo',
-        password: 'demo'
-      },
-      timeout: 10000
-    });
-    
-    if (response.data && response.data.url) {
-      // Скачиваем сгенерированный PDF
-      const pdfResponse = await axios.get(response.data.url, {
-        responseType: 'arraybuffer',
-        timeout: 10000
-      });
-      return Buffer.from(pdfResponse.data);
-    } else {
-      throw new Error('API не вернул URL PDF');
-    }
-    
-  } catch (apiError) {
-    console.error('Внешний API не работает:', apiError.message);
-    
-    // Fallback: возвращаем простой текстовый PDF
-    console.log('Создаем простой текстовый PDF...');
-    
-    const { personalInfo, workExperience, education, skills } = data;
-    
-    // Создаем простой текстовый контент
-    let textContent = `${personalInfo.lastName} ${personalInfo.firstName}\n\n`;
-    
-    textContent += 'КОНТАКТЫ:\n';
-    if (personalInfo.phone) textContent += `Телефон: ${personalInfo.phone}\n`;
-    if (personalInfo.email) textContent += `Email: ${personalInfo.email}\n`;
-    if (personalInfo.location) textContent += `Местоположение: ${personalInfo.location}\n`;
-    if (personalInfo.telegram) textContent += `Telegram: ${personalInfo.telegram}\n`;
-    if (personalInfo.age) textContent += `Возраст: ${personalInfo.age}\n`;
-    
-    if (workExperience && workExperience.length > 0) {
-      textContent += '\nОПЫТ РАБОТЫ:\n';
-      workExperience.forEach(work => {
-        textContent += `\n${work.position}\n`;
-        textContent += `${work.company}\n`;
-        const period = work.isCurrentJob ? 
-          `${work.startDate} - настоящее время` : 
-          `${work.startDate} - ${work.endDate}`;
-        textContent += `${period}\n`;
-        
-        if (work.responsibilities && work.responsibilities.length > 0) {
-          work.responsibilities.forEach(resp => {
-            if (typeof resp === 'string') {
-              textContent += `- ${resp}\n`;
-            } else if (resp.title) {
-              textContent += `- ${resp.title}\n`;
-              if (resp.subpoints && resp.subpoints.length > 0) {
-                resp.subpoints.forEach(sub => {
-                  textContent += `  * ${sub}\n`;
-                });
-              }
-            }
-          });
-        }
-      });
-    }
-    
-    if (education && education.length > 0) {
-      textContent += '\nОБРАЗОВАНИЕ:\n';
-      education.forEach(edu => {
-        textContent += `\n${edu.institution}\n`;
-        textContent += `${edu.degree} - ${edu.fieldOfStudy}\n`;
-        textContent += `${edu.year}\n`;
-      });
-    }
-    
-    if (skills && skills.length > 0) {
-      textContent += '\nНАВЫКИ / ТЕХНОЛОГИИ:\n';
-      skills.forEach(skill => {
-        textContent += `- ${skill.name} - ${skill.level}\n`;
-      });
-    }
-    
-    // Возвращаем текст как "PDF" (на самом деле просто текстовый файл с правильными заголовками)
-    return Buffer.from(textContent, 'utf8');
+  console.log('Создаем текстовое резюме...');
+  
+  const { personalInfo, workExperience, education, additionalEducation, skills, languages, qualities, aboutMe } = data;
+  
+  // Создаем текстовый контент с правильной кодировкой
+  let textContent = '';
+  
+  // Заголовок
+  textContent += `${personalInfo.lastName} ${personalInfo.firstName}\n`;
+  textContent += '='.repeat(50) + '\n\n';
+  
+  // Контактная информация
+  textContent += 'КОНТАКТЫ:\n';
+  textContent += '-'.repeat(20) + '\n';
+  if (personalInfo.phone) textContent += `Телефон: ${personalInfo.phone}\n`;
+  if (personalInfo.email) textContent += `Email: ${personalInfo.email}\n`;
+  if (personalInfo.location) textContent += `Местоположение: ${personalInfo.location}\n`;
+  if (personalInfo.telegram) textContent += `Telegram: ${personalInfo.telegram}\n`;
+  if (personalInfo.age) textContent += `Возраст: ${personalInfo.age} лет\n`;
+  textContent += '\n';
+  
+  // О себе
+  if (aboutMe && aboutMe.trim()) {
+    textContent += 'О СЕБЕ:\n';
+    textContent += '-'.repeat(20) + '\n';
+    textContent += `${aboutMe}\n\n`;
   }
+  
+  // Опыт работы
+  if (workExperience && workExperience.length > 0) {
+    textContent += 'ОПЫТ РАБОТЫ:\n';
+    textContent += '-'.repeat(20) + '\n';
+    
+    workExperience.forEach((work, index) => {
+      textContent += `${index + 1}. ${work.position}\n`;
+      textContent += `   Компания: ${work.company}\n`;
+      
+      const period = work.isCurrentJob ? 
+        `${work.startDate} - настоящее время` : 
+        `${work.startDate} - ${work.endDate}`;
+      textContent += `   Период: ${period}\n`;
+      
+      if (work.responsibilities && work.responsibilities.length > 0) {
+        textContent += '   Обязанности:\n';
+        work.responsibilities.forEach(resp => {
+          if (typeof resp === 'string') {
+            textContent += `   - ${resp}\n`;
+          } else if (resp.title) {
+            textContent += `   - ${resp.title}\n`;
+            if (resp.subpoints && resp.subpoints.length > 0) {
+              resp.subpoints.forEach(sub => {
+                textContent += `     * ${sub}\n`;
+              });
+            }
+          }
+        });
+      }
+      textContent += '\n';
+    });
+  }
+  
+  // Образование
+  if (education && education.length > 0) {
+    textContent += 'ОБРАЗОВАНИЕ:\n';
+    textContent += '-'.repeat(20) + '\n';
+    
+    education.forEach((edu, index) => {
+      textContent += `${index + 1}. ${edu.institution}\n`;
+      textContent += `   ${edu.degree} - ${edu.fieldOfStudy}\n`;
+      textContent += `   Год: ${edu.year}\n\n`;
+    });
+  }
+  
+  // Дополнительное образование
+  if (additionalEducation && additionalEducation.length > 0) {
+    textContent += 'КУРСЫ:\n';
+    textContent += '-'.repeat(20) + '\n';
+    
+    additionalEducation.forEach((course, index) => {
+      textContent += `${index + 1}. ${course.courseName}\n`;
+      textContent += `   ${course.institution}\n`;
+      textContent += `   Год: ${course.year}\n\n`;
+    });
+  }
+  
+  // Навыки
+  if (skills && skills.length > 0) {
+    textContent += 'НАВЫКИ / ТЕХНОЛОГИИ:\n';
+    textContent += '-'.repeat(20) + '\n';
+    skills.forEach(skill => {
+      textContent += `- ${skill.name} (${skill.level})\n`;
+    });
+    textContent += '\n';
+  }
+  
+  // Языки
+  if (languages && languages.length > 0) {
+    textContent += 'ЯЗЫКИ:\n';
+    textContent += '-'.repeat(20) + '\n';
+    languages.forEach(lang => {
+      textContent += `- ${lang.language} (${lang.level})\n`;
+    });
+    textContent += '\n';
+  }
+  
+  // Личные качества
+  if (qualities && qualities.length > 0) {
+    textContent += 'ЛИЧНЫЕ КАЧЕСТВА:\n';
+    textContent += '-'.repeat(20) + '\n';
+    qualities.forEach(quality => {
+      textContent += `- ${quality}\n`;
+    });
+    textContent += '\n';
+  }
+  
+  // Возвращаем текст в правильной кодировке
+  return Buffer.from(textContent, 'utf8');
 };
 
 // Функция для генерации HTML резюме
@@ -797,27 +778,13 @@ app.post('/api/generate-pdf', async (req, res) => {
       education: resumeData.education?.length || 0
     });
     
-        // Генерируем PDF через внешний API или текстовый fallback
-    console.log('Генерируем PDF...');
+        // Генерируем текстовое резюме
+    console.log('Генерируем текстовое резюме...');
     const pdf = await generateResumePDF(resumeData);
-    console.log('PDF сгенерирован успешно, размер:', pdf.length, 'байт');
+    console.log('Текстовое резюме сгенерировано успешно, размер:', pdf.length, 'байт');
     
-    // Проверяем, что это действительно PDF
-    const pdfHeaderBytes = pdf.slice(0, 8);
-    const pdfHeader = String.fromCharCode(...pdfHeaderBytes);
-    console.log('PDF заголовок:', pdfHeader);
-    console.log('Это PDF?', pdfHeader.startsWith('%PDF'));
-    
-    if (!pdfHeader.startsWith('%PDF')) {
-      console.error('Сгенерированный файл не является PDF!');
-      const first50Bytes = pdf.slice(0, 50);
-      const first50String = String.fromCharCode(...first50Bytes);
-      console.log('Первые 50 байт как строка:', first50String);
-      return res.status(500).json({ error: 'Ошибка генерации PDF' });
-    }
-    
-    // Определяем тип контента на основе содержимого
-    const isPDF = pdf.slice(0, 4).toString() === '%PDF' || pdf.slice(0, 8).includes('%PDF');
+    // Это всегда текстовый файл
+    const isPDF = false;
     
     // Отправляем файл как response
     if (isPDF) {
