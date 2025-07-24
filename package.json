@@ -1,0 +1,15 @@
+{
+  "name": "resume-builder",
+  "version": "1.0.0",
+  "description": "Resume Builder с генерацией PDF",
+  "scripts": {
+    "build": "cd client && npm install && npm run build",
+    "start": "cd server && npm start",
+    "dev:client": "cd client && npm start",
+    "dev:server": "cd server && npm run dev",
+    "install:all": "npm install && cd client && npm install && cd ../server && npm install"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+} 
