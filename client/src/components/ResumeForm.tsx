@@ -80,10 +80,12 @@ const ResumeForm: React.FC<ResumeFormProps> = ({ onSubmit, initialData }) => {
     if (initialData?.personalInfo?.photo) {
       setPhotoPreview(initialData.personalInfo.photo);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Запускаем только один раз при монтировании
 
   // Автосохранение в localStorage (исправлено)
   const watchedValues = watch();
+  const watchedValuesStr = JSON.stringify(watchedValues);
   
   useEffect(() => {
     // Добавляем проверку на валидность данных и предотвращаем бесконечные циклы
@@ -98,7 +100,7 @@ const ResumeForm: React.FC<ResumeFormProps> = ({ onSubmit, initialData }) => {
     const timeoutId = setTimeout(() => {
       try {
         // Проверяем, что данные не пустые
-        const dataToSave = JSON.stringify(watchedValues);
+        const dataToSave = watchedValuesStr;
         if (dataToSave && dataToSave.length < 5000000) { // Лимит 5MB
           const currentSaved = localStorage.getItem('resumeFormData');
           // Сохраняем только если данные изменились
@@ -118,7 +120,7 @@ const ResumeForm: React.FC<ResumeFormProps> = ({ onSubmit, initialData }) => {
     }, 2000); // Увеличиваем задержку до 2 секунд
 
     return () => clearTimeout(timeoutId);
-  }, [JSON.stringify(watchedValues)]); // Используем JSON.stringify для правильного сравнения
+  }, [watchedValues, watchedValuesStr]); // Добавляем правильные зависимости
 
   const {
     fields: workFields,
