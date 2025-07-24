@@ -2,8 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const chromium = require('@sparticuz/chromium');
-const puppeteerCore = require('puppeteer-core');
+const puppeteer = require('puppeteer');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -668,147 +667,54 @@ app.post('/api/generate-pdf', async (req, res) => {
       return res.status(500).json({ error: 'Ошибка в данных резюме' });
     }
     
-    // Настройка браузера для разных окружений
+        // Универсальная настройка браузера
+    console.log('Запускаем Puppeteer...');
+    
     const isVercel = process.env.VERCEL || process.env.VERCEL_ENV;
-    let browser;
+    
+    const browserOptions = {
+      headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox', 
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor',
+        '--no-first-run',
+        '--disable-extensions'
+      ]
+    };
     
     if (isVercel) {
-      console.log('Запуск в Vercel окружении с @sparticuz/chromium');
-      
-      try {
-        // Получаем путь к chromium и шрифтам
-        const executablePath = await chromium.executablePath();
-        console.log('Chrome executable path:', executablePath);
-        
-        // Добавляем шрифты если доступны
-        if (chromium.font) {
-          await chromium.font('https://raw.githubusercontent.com/googlefonts/noto-emoji/main/fonts/NotoColorEmoji.ttf');
-        }
-        
-        const launchOptions = {
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--disable-web-security',
-            '--disable-features=VizDisplayCompositor,AudioServiceOutOfProcess,TranslateUI',
-            '--disable-ipc-flooding-protection',
-            '--disable-background-timer-throttling',
-            '--disable-backgrounding-occluded-windows',
-            '--disable-renderer-backgrounding',
-            '--disable-extensions',
-            '--disable-plugins',
-            '--disable-sync',
-            '--hide-scrollbars',
-            '--mute-audio',
-            '--no-first-run',
-            '--safebrowsing-disable-auto-update',
-            '--ignore-certificate-errors',
-            '--ignore-ssl-errors',
-            '--ignore-certificate-errors-spki-list',
-            '--disable-accelerated-2d-canvas',
-            '--disable-background-networking',
-            '--disable-default-apps',
-            '--disable-sync',
-            '--metrics-recording-only',
-            '--no-default-browser-check',
-            '--safebrowsing-disable-auto-update',
-            '--single-process',
-            '--no-zygote',
-            '--disable-automation',
-            '--disable-blink-features=AutomationControlled',
-            '--use-mock-keychain',
-            '--disable-popup-blocking',
-            '--disable-prompt-on-repost',
-            '--disable-hang-monitor',
-            '--disable-component-update',
-            '--disable-domain-reliability',
-            '--disable-client-side-phishing-detection',
-            '--disable-translate',
-            '--disable-logging',
-            '--silent',
-            '--user-data-dir=/tmp',
-            '--data-path=/tmp',
-            '--homedir=/tmp',
-            '--disk-cache-dir=/tmp'
-          ],
-          executablePath: executablePath,
-          headless: true,
-          ignoreHTTPSErrors: true,
-          timeout: 30000,
-        };
-        
-        // Используем @sparticuz/chromium для Vercel
-        browser = await puppeteerCore.launch(launchOptions);
-        
-        console.log('Браузер @sparticuz/chromium запущен успешно');
-      } catch (chromeError) {
-        console.error('Ошибка запуска @sparticuz/chromium:', chromeError.message);
-        
-        // Fallback - попробуем без executablePath (системный Chrome)
-        console.log('Пробуем запуск без executablePath...');
-        try {
-          browser = await puppeteerCore.launch({
-            headless: true,
-            args: [
-              '--no-sandbox',
-              '--disable-setuid-sandbox',
-              '--disable-dev-shm-usage',
-              '--disable-gpu',
-              '--disable-web-security',
-              '--single-process',
-              '--no-zygote'
-            ],
-            timeout: 30000,
-          });
-          console.log('Системный браузер запущен успешно');
-        } catch (fallbackError) {
-          console.error('Системный браузер тоже не работает:', fallbackError.message);
-          throw chromeError; // Возвращаем исходную ошибку
-        }
-      }
+      console.log('Vercel окружение обнаружено');
+      browserOptions.args.push(
+        '--single-process',
+        '--no-zygote',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding'
+      );
     } else {
-      console.log('Запуск в локальном окружении');
-      
-      // Локальная разработка
+      console.log('Локальное окружение');
+      // Для локальной разработки на Windows пытаемся найти Chrome
       const os = require('os');
-      let executablePath;
-      
       if (os.platform() === 'win32') {
         const possiblePaths = [
           'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
           'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-          'C:\\Users\\' + os.userInfo().username + '\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe',
           'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
         ];
         
-        executablePath = possiblePaths.find(path => fs.existsSync(path));
-        
-        if (!executablePath) {
-          console.log('Chrome не найден, используем встроенный Puppeteer браузер');
-          executablePath = undefined;
+        const executablePath = possiblePaths.find(path => fs.existsSync(path));
+        if (executablePath) {
+          browserOptions.executablePath = executablePath;
+          console.log('Найден браузер:', executablePath);
         }
       }
-      
-             const browserOptions = {
-         headless: 'new',
-         args: [
-           '--no-sandbox', 
-           '--disable-setuid-sandbox',
-           '--disable-web-security',
-           '--disable-dev-shm-usage',
-           '--no-first-run',
-           '--disable-gpu'
-         ]
-       };
-      
-      if (executablePath) {
-        browserOptions.executablePath = executablePath;
-      }
-      
-      browser = await puppeteerCore.launch(browserOptions);
     }
+    
+    const browser = await puppeteer.launch(browserOptions);
     
     console.log('Puppeteer запущен успешно');
     const page = await browser.newPage();
