@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const puppeteer = require('puppeteer');
+const { chromium } = require('playwright');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -667,116 +667,37 @@ app.post('/api/generate-pdf', async (req, res) => {
       return res.status(500).json({ error: 'Ошибка в данных резюме' });
     }
     
-        // Универсальная настройка браузера
-    console.log('Запускаем Puppeteer...');
+        // Запуск браузера с Playwright
+    console.log('Запускаем Playwright...');
     
     const isVercel = process.env.VERCEL || process.env.VERCEL_ENV;
-    let browser;
+    
+    const launchOptions = {
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-web-security'
+      ]
+    };
     
     if (isVercel) {
       console.log('Vercel окружение обнаружено');
-      
-      // Проверяем наличие скачанного браузера
-      const { executablePath } = require('puppeteer');
-      console.log('Попытка использовать встроенный браузер Puppeteer...');
-      
-      try {
-        browser = await puppeteer.launch({
-          headless: 'new',
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage', 
-            '--disable-gpu',
-            '--disable-web-security',
-            '--disable-features=VizDisplayCompositor',
-            '--no-first-run',
-            '--disable-extensions',
-            '--single-process',
-            '--no-zygote',
-            '--disable-background-timer-throttling',
-            '--disable-backgrounding-occluded-windows',
-            '--disable-renderer-backgrounding'
-          ]
-        });
-        console.log('Puppeteer браузер запущен успешно');
-      } catch (puppeteerError) {
-        console.error('Puppeteer ошибка:', puppeteerError.message);
-        
-        // Fallback: пробуем с указанным путем к системному Chrome 
-        console.log('Пробуем системный Chrome...');
-        const systemChromePaths = [
-          '/usr/bin/google-chrome',
-          '/usr/bin/google-chrome-stable',
-          '/usr/bin/chromium-browser',
-          '/usr/bin/chromium'
-        ];
-        
-        let systemChrome = null;
-        for (const chromePath of systemChromePaths) {
-          if (fs.existsSync(chromePath)) {
-            systemChrome = chromePath;
-            console.log('Найден системный Chrome:', chromePath);
-            break;
-          }
-        }
-        
-        if (systemChrome) {
-          browser = await puppeteer.launch({
-            executablePath: systemChrome,
-            headless: 'new',
-            args: [
-              '--no-sandbox',
-              '--disable-setuid-sandbox',
-              '--disable-dev-shm-usage',
-              '--disable-gpu',
-              '--disable-web-security',
-              '--single-process',
-              '--no-zygote'
-            ]
-          });
-          console.log('Системный Chrome запущен успешно');
-        } else {
-          throw new Error('Не найден ни встроенный, ни системный браузер');
-        }
-      }
+      launchOptions.args.push(
+        '--single-process',
+        '--no-zygote',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding'
+      );
     } else {
       console.log('Локальное окружение');
-      
-      const browserOptions = {
-        headless: 'new',
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox', 
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--disable-web-security',
-          '--disable-features=VizDisplayCompositor',
-          '--no-first-run',
-          '--disable-extensions'
-        ]
-      };
-      
-      // Для локальной разработки на Windows пытаемся найти Chrome
-      const os = require('os');
-      if (os.platform() === 'win32') {
-        const possiblePaths = [
-          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-          'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
-        ];
-        
-        const executablePath = possiblePaths.find(path => fs.existsSync(path));
-        if (executablePath) {
-          browserOptions.executablePath = executablePath;
-          console.log('Найден браузер:', executablePath);
-        }
-      }
-      
-      browser = await puppeteer.launch(browserOptions);
     }
     
-    console.log('Puppeteer запущен успешно');
+    const browser = await chromium.launch(launchOptions);
+    console.log('Playwright браузер запущен успешно');
     const page = await browser.newPage();
     
     // Устанавливаем HTML контент
