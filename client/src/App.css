@@ -1397,21 +1397,44 @@ h1, h2, h3 {
 
 /* Print Styles */
 @media print {
-  /* Скрыть все элементы управления */
+  /* Скрыть все элементы управления и интерфейс */
   .preview-header,
   .back-button,
   .print-button,
   .download-button,
   .preview-actions,
-  .print-instructions {
+  .print-instructions,
+  nav,
+  header,
+  footer {
     display: none !important;
   }
   
-  /* Оптимизировать макет для печати */
+  /* Сбросить все отступы и фоны для страницы */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  
+  html, body {
+    width: 210mm !important;
+    height: 297mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+    color: #000 !important;
+    background: white !important;
+    font-family: 'Arial', sans-serif !important;
+  }
+  
+  /* Главный контейнер резюме */
   .resume-preview {
     padding: 0 !important;
-    background: none !important;
+    margin: 0 !important;
+    background: white !important;
     min-height: auto !important;
+    width: 100% !important;
   }
   
   .resume-container {
@@ -1419,7 +1442,9 @@ h1, h2, h3 {
     margin: 0 !important;
     padding: 0 !important;
     max-width: none !important;
+    width: 100% !important;
     background: white !important;
+    border: none !important;
   }
   
   .resume-page {
@@ -1427,32 +1452,114 @@ h1, h2, h3 {
     box-shadow: none !important;
     border: none !important;
     margin: 0 !important;
-    padding: 20mm !important;
+    padding: 15mm 20mm !important;
     min-height: auto !important;
-  }
-  
-  /* Оптимизировать шрифты для печати */
-  body, html {
-    font-size: 12pt !important;
-    line-height: 1.3 !important;
-    color: black !important;
+    width: 100% !important;
     background: white !important;
   }
   
-  /* Убрать тени и эффекты */
-  * {
-    box-shadow: none !important;
-    text-shadow: none !important;
+  /* Заголовок резюме */
+  .resume-header {
+    margin-bottom: 20px !important;
   }
   
-  /* Обеспечить правильные разрывы страниц */
+  .full-name {
+    font-size: 22pt !important;
+    font-weight: bold !important;
+    margin: 0 0 10px 0 !important;
+    color: #000 !important;
+  }
+  
+  /* Контактная информация */
+  .header-info {
+    font-size: 10pt !important;
+    margin-bottom: 20px !important;
+  }
+  
+  .contact-item {
+    margin: 2px 0 !important;
+    font-size: 10pt !important;
+  }
+  
+  /* Секции */
   .section {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    margin-bottom: 15px !important;
   }
   
+  .section-title {
+    font-size: 14pt !important;
+    font-weight: bold !important;
+    margin: 15px 0 8px 0 !important;
+    padding-bottom: 3px !important;
+    border-bottom: 1px solid #333 !important;
+    color: #000 !important;
+  }
+  
+  /* Элементы опыта работы и образования */
   .work-item, .education-item {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    margin-bottom: 12px !important;
+  }
+  
+  .job-title, .company {
+    font-size: 11pt !important;
+    margin: 2px 0 !important;
+  }
+  
+  .job-title {
+    font-weight: bold !important;
+  }
+  
+  .period {
+    font-size: 9pt !important;
+    color: #555 !important;
+  }
+  
+  /* Списки обязанностей */
+  .responsibilities ul {
+    margin: 5px 0 !important;
+    padding-left: 15px !important;
+  }
+  
+  .responsibilities li {
+    margin: 2px 0 !important;
+    font-size: 10pt !important;
+    line-height: 1.3 !important;
+  }
+  
+  .sub-responsibilities {
+    padding-left: 15px !important;
+  }
+  
+  .sub-responsibilities li {
+    font-size: 9pt !important;
+  }
+  
+  /* Навыки */
+  .skills-grid {
+    display: block !important;
+  }
+  
+  .skill-item {
+    margin: 3px 0 !important;
+    font-size: 10pt !important;
+  }
+  
+  /* Убрать фото при печати (может быть проблематично) */
+  .profile-photo {
+    display: none !important;
+  }
+  
+  /* Компактные отступы для всех элементов */
+  p, li, div {
+    margin: 2px 0 !important;
+  }
+  
+  /* Страничные разрывы */
+  .section:last-child {
+    page-break-after: avoid !important;
   }
 }
